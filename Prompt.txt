@@ -1,0 +1,10 @@
+Prompt
+
+create new curator - 
+1. use free ai if possible
+2. capture news that only happne in last 24 hours
+3. no political news
+4. capture Korean and ENglish news papapers, show news in Korean or ENglieh with option selection
+5. read all posible news paper for free
+6. choose best possible languge
+7. should be runnerble without server - can run on desktop, or mobile app

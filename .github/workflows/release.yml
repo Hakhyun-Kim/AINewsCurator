@@ -1,0 +1,199 @@
+name: Build and Release AI News Curator
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  NODE_VERSION: '18'
+  ELECTRON_VERSION: '27.0.0'
+
+jobs:
+  # Build and test the application
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Build web application
+        run: npm run build
+
+  # Build desktop applications for multiple platforms
+  build-desktop:
+    needs: test
+    strategy:
+      matrix:
+        platform: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Build Electron app
+        run: npm run electron-pack
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.platform }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.rpm
+          retention-days: 30
+
+  # Build Docker image
+  build-docker:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build web application
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ github.event.inputs.version || github.ref_name }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Create GitHub release
+  release:
+    needs: [build-desktop, build-docker]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Get version
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: AI News Curator ${{ steps.get_version.outputs.version }}
+          body: |
+            ## AI News Curator ${{ steps.get_version.outputs.version }}
+            
+            ### What's New
+            - Latest news from the past 24 hours
+            - Non-political content filtering
+            - Korean and English language support
+            - Desktop and web versions available
+            
+            ### Downloads
+            - **Windows**: Download the .exe file
+            - **macOS**: Download the .dmg file
+            - **Linux**: Download the .AppImage file
+            - **Docker**: `docker pull ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}`
+            
+            ### Features
+            - ✅ Free AI integration
+            - ✅ 24-hour news filter
+            - ✅ No political content
+            - ✅ Korean & English support
+            - ✅ Multiple free sources
+            - ✅ Desktop & mobile ready
+            
+            ### Installation
+            ```bash
+            # Docker
+            docker run -p 3000:3000 ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
+            
+            # Desktop app
+            Download the appropriate file for your platform
+            ```
+          files: |
+            artifacts/desktop-windows-latest/*.exe
+            artifacts/desktop-macos-latest/*.dmg
+            artifacts/desktop-ubuntu-latest/*.AppImage
+            artifacts/desktop-ubuntu-latest/*.deb
+            artifacts/desktop-ubuntu-latest/*.rpm
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Deploy to GitHub Pages (optional)
+  deploy-pages:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build 
