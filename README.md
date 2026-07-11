@@ -5,7 +5,7 @@ A modern, AI-powered news curator that aggregates and filters news from multiple
 ## Features
 
 ### ✅ Core Requirements Met
-- **Free AI Integration**: Uses free news APIs and simulated AI summaries
+- **Free AI Integration**: On-device embeddings for semantic search (no API key), free news APIs, simulated headline summaries
 - **24-Hour News Filter**: Only shows news from the last 24 hours
 - **No Political Content**: Automatically filters out political news
 - **Korean & English Support**: Supports both Korean and English newspapers
@@ -13,6 +13,7 @@ A modern, AI-powered news curator that aggregates and filters news from multiple
 - **Desktop & Mobile Ready**: Runs as desktop app or web application
 
 ### 🚀 Additional Features
+- **Ask the News (RAG)**: semantic search over today's articles with in-browser embeddings — type a question in English or Korean and get a retrieval-grounded digest where every line links to its source
 - **Modern UI**: Beautiful, responsive design with dark/light mode
 - **Real-time Updates**: Auto-refresh with manual refresh option
 - **Smart Filtering**: AI-powered content categorization
@@ -96,10 +97,18 @@ The app uses intelligent filtering to:
 - Prioritize non-political categories (technology, science, health, etc.)
 
 ### AI Integration
-Currently uses simulated AI summaries. In production, you can integrate:
-- OpenAI API (free tier available)
-- Hugging Face free models
-- Local AI models
+**Semantic search / RAG (real, on-device):** the "Ask the News" panel embeds each
+article (title + description) and your query with `Xenova/multilingual-e5-small`
+running in the browser via [Transformers.js](https://huggingface.co/docs/transformers.js)
+(ONNX/WASM, quantized ~112 MB, downloaded once and cached). Retrieval is
+cosine similarity over an in-memory vector index (E5 `query:` / `passage:`
+prefixes applied), and the digest is extractive and fully grounded — every line
+cites its source article. No API key, no server; works in the web app and the
+Electron build. See `src/services/embeddingService.js` and `src/services/ragService.js`.
+
+**Headline summaries** remain simulated. Natural next step: feed the retrieved
+articles to an LLM API (Claude, OpenAI) with a user-supplied key for generative,
+cited answers on top of the same retrieval layer.
 
 ## Configuration
 

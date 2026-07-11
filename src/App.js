@@ -4,6 +4,7 @@ import { Globe, Newspaper, Settings, RefreshCw, Moon, Sun } from 'lucide-react';
 import NewsService from './services/newsService';
 import NewsCard from './components/NewsCard';
 import NewsSummary from './components/NewsSummary';
+import AskNews from './components/AskNews';
 import LoadingSpinner from './components/LoadingSpinner';
 
 function App() {
@@ -143,6 +144,11 @@ function App() {
 
                 {/* AI Summary */}
                 {summary && <NewsSummary summary={summary} darkMode={darkMode} />}
+
+                {/* Semantic search over today's articles (in-browser RAG) */}
+                {!loading && news.length > 0 && (
+                  <AskNews articles={news} darkMode={darkMode} language={language} />
+                )}
 
                 {/* News Grid */}
                 {loading ? (
