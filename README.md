@@ -1,5 +1,7 @@
 # AI News Curator
 
+[한국어 README](README.ko.md)
+
 A modern, AI-powered news curator that aggregates and filters news from multiple sources, focusing on non-political content from the last 24 hours. Available as both a web application and desktop app.
 
 ## Features
@@ -17,7 +19,7 @@ A modern, AI-powered news curator that aggregates and filters news from multiple
 - **Modern UI**: Beautiful, responsive design with dark/light mode
 - **Real-time Updates**: Auto-refresh with manual refresh option
 - **Smart Filtering**: AI-powered content categorization
-- **Offline Capable**: Caches news for offline reading
+- **Session Caching**: 30-minute in-memory cache to limit repeat fetches
 - **Cross-platform**: Works on Windows, macOS, and Linux
 
 ## Quick Start
@@ -74,13 +76,23 @@ npm run electron-pack
 
 ### News Sources
 
-#### English Sources
-- NewsAPI (US headlines)
-- GNews (Global headlines)
+News is fetched from public RSS feeds — no API key required. Requests are
+routed through a CORS proxy (`api.allorigins.win`) so the browser can read
+the feeds directly; if the proxy fails, a direct request is attempted.
 
-#### Korean Sources
-- NewsAPI Korea
-- GNews Korea
+#### English Sources
+- BBC News
+- Reuters
+- TechCrunch
+- The Verge
+
+#### Korean Sources (English-language Korean outlets)
+- Yonhap News (en.yna.co.kr)
+- Korea Times
+- Korea Herald
+
+If every RSS fetch fails (e.g. CORS blocked), the app falls back to a public
+news API, and finally shows a placeholder article explaining the failure.
 
 ## Technical Details
 
@@ -112,17 +124,13 @@ cited answers on top of the same retrieval layer.
 
 ## Configuration
 
-### Environment Variables
-Create a `.env` file for API keys:
-
-```env
-REACT_APP_NEWS_API_KEY=your_newsapi_key
-REACT_APP_GNEWS_TOKEN=your_gnews_token
-```
+No API keys or environment variables are required — all sources are public
+RSS feeds and the embedding model runs on-device.
 
 ### Customization
-- Modify `src/services/newsService.js` to add more news sources
-- Update filtering keywords in the same file
+- Add or edit news sources in the `rssUrls` map in `src/services/newsService.js`
+- Update the political-keyword filter lists in the same file
+- Adjust cache duration via `cacheTimeout` (default 30 minutes, in-memory)
 - Customize UI in `src/components/`
 
 ## Building for Production
@@ -168,4 +176,4 @@ For issues and questions:
 
 ---
 
-**Note**: This app uses demo API keys for free news sources. For production use, consider upgrading to paid tiers or implementing additional free news sources. 
+**Note**: This app relies on free public RSS feeds and a public CORS proxy (`api.allorigins.win`). For production use, consider running your own proxy or a small backend that fetches the feeds server-side. 

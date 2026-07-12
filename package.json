@@ -2,6 +2,7 @@
   "name": "ai-news-curator",
   "version": "1.0.0",
   "description": "AI-powered news curator for Korean and English news",
+  "homepage": "https://hakhyun-kim.github.io/AINewsCurator",
   "main": "index.js",
   "scripts": {
     "start": "react-scripts start",
