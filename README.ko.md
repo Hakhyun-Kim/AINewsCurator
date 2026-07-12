@@ -9,14 +9,14 @@ API 키나 서버 없이 무료로 동작합니다.
 ## 주요 기능
 
 ### 1. 뉴스 수집 (RSS 기반, API 키 불필요)
-- 공개 RSS 피드에서 뉴스를 가져옵니다. 브라우저의 CORS 제한을 우회하기 위해
-  공개 프록시(`api.allorigins.win`)를 거치고, 실패하면 직접 요청을 시도합니다.
-- **영어 소스**: BBC News, Reuters, TechCrunch, The Verge
-- **한국 소스**(영문 한국 매체): 연합뉴스(en.yna.co.kr), Korea Times, Korea Herald
+- 공개 RSS 피드에서 뉴스를 가져옵니다. 브라우저는 CORS 제한 때문에 대부분의 RSS를
+  직접 읽을 수 없어서, [rss2json](https://rss2json.com)(RSS→JSON 변환)을 1차로 쓰고,
+  실패하면 allorigins CORS 프록시 → 직접 요청 순으로 폴백합니다.
+- **영어 소스**: BBC News, The Guardian, TechCrunch, The Verge, Ars Technica
+- **한국 소스**(영문 한국 매체): 연합뉴스(en.yna.co.kr), Korea Herald
 - 모든 소스를 병렬로 가져온 뒤 URL 기준으로 중복을 제거하고, 최신순으로 정렬해
   최대 50개까지 표시합니다.
-- RSS가 전부 실패하면 공개 뉴스 API로 폴백하고, 그마저 실패하면 실패 원인을
-  설명하는 안내용 기사 1건을 표시합니다.
+- 전부 실패하면 실패 원인을 설명하는 안내용 기사 1건을 표시합니다.
 
 ### 2. 24시간 필터
 - `publishedAt` 기준으로 **최근 24시간 이내** 기사만 통과시킵니다
@@ -93,15 +93,15 @@ electron.js                       # Electron 메인 프로세스
 
 ## 커스터마이징
 
-- **뉴스 소스 추가/변경**: `src/services/newsService.js`의 `rssUrls` 맵에 RSS 주소를 추가
+- **뉴스 소스 추가/변경**: `src/services/newsService.js`의 `NEWS_SOURCES` 맵에 RSS 주소를 추가
 - **필터 키워드 수정**: 같은 파일의 `POLITICAL_KEYWORDS` 배열
 - **캐시 시간**: `cacheTimeout` (기본 30분)
 - **UI**: `src/components/` 아래 컴포넌트 수정
 
 ## 알려진 한계
 
-- **공개 CORS 프록시 의존**: `api.allorigins.win`이 느리거나 다운되면 뉴스 수집이
-  실패할 수 있습니다. 실서비스라면 자체 프록시나 서버사이드 수집을 권장합니다.
+- **무료 공개 서비스 의존**: rss2json·allorigins 같은 무료 서비스가 느리거나 다운되면
+  뉴스 수집이 실패할 수 있습니다. 실서비스라면 자체 프록시나 서버사이드 수집을 권장합니다.
 - **한국어 모드의 소스는 영문 매체**: 연합뉴스 영문판 등 한국 관련 영어 기사입니다.
   한글 기사를 원하면 한글 RSS(예: 연합뉴스 국문 RSS)를 추가해야 합니다.
 - **RSS 파서가 정규식 기반**: CDATA나 특이한 피드 형식은 누락될 수 있습니다.

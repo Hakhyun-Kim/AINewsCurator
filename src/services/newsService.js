@@ -1,95 +1,18 @@
 import axios from 'axios';
 import { format, subHours } from 'date-fns';
 
-// Real news sources for web scraping
+// News sources, each fetched via its public RSS feed (no API key needed)
 const NEWS_SOURCES = {
   english: [
-    {
-      name: 'BBC News',
-      url: 'https://www.bbc.com/news',
-      type: 'scrape',
-      selectors: {
-        articles: 'article, .gs-c-promo, .gs-o-faux-block-link',
-        title: 'h3, .gs-c-promo-heading__title, .gs-c-promo-heading',
-        description: '.gs-c-promo-summary, .gs-c-promo-description',
-        link: 'a',
-        image: 'img'
-      }
-    },
-    {
-      name: 'Reuters',
-      url: 'https://www.reuters.com',
-      type: 'scrape',
-      selectors: {
-        articles: 'article, .story-card',
-        title: 'h3, .story-card-title',
-        description: '.story-card-summary',
-        link: 'a',
-        image: 'img'
-      }
-    },
-    {
-      name: 'TechCrunch',
-      url: 'https://techcrunch.com',
-      type: 'scrape',
-      selectors: {
-        articles: 'article, .post-block',
-        title: 'h2, .post-block__title',
-        description: '.post-block__content',
-        link: 'a',
-        image: 'img'
-      }
-    },
-    {
-      name: 'The Verge',
-      url: 'https://www.theverge.com',
-      type: 'scrape',
-      selectors: {
-        articles: 'article, .c-entry-box',
-        title: 'h2, .c-entry-box--compact__title',
-        description: '.c-entry-summary',
-        link: 'a',
-        image: 'img'
-      }
-    }
+    { name: 'BBC News', rss: 'https://feeds.bbci.co.uk/news/rss.xml' },
+    { name: 'The Guardian', rss: 'https://www.theguardian.com/international/rss' },
+    { name: 'TechCrunch', rss: 'https://techcrunch.com/feed/' },
+    { name: 'The Verge', rss: 'https://www.theverge.com/rss/index.xml' },
+    { name: 'Ars Technica', rss: 'https://feeds.arstechnica.com/arstechnica/index' }
   ],
   korean: [
-    {
-      name: 'Yonhap News',
-      url: 'https://en.yna.co.kr',
-      type: 'scrape',
-      selectors: {
-        articles: 'article, .news-item',
-        title: 'h3, .news-title',
-        description: '.news-summary',
-        link: 'a',
-        image: 'img'
-      }
-    },
-    {
-      name: 'Korea Times',
-      url: 'https://www.koreatimes.co.kr',
-      type: 'scrape',
-      selectors: {
-        articles: 'article, .news-item',
-        title: 'h3, .news-title',
-        description: '.news-summary',
-        link: 'a',
-        image: 'img'
-      }
-    },
-    {
-      name: 'Korea Herald',
-      url: 'https://www.koreaherald.com',
-      type: 'scrape',
-      selectors: {
-        articles: 'article, .news-item',
-        title: 'h3, .news-title',
-        description: '.news-summary',
-        link: 'a',
-        image: 'img'
-      }
-    }
+    { name: 'Yonhap News', rss: 'https://en.yna.co.kr/RSS/news.xml' },
+    { name: 'Korea Herald', rss: 'https://www.koreaherald.com/rss/newsAll' }
   ]
 };
 
@@ -176,58 +99,35 @@ class NewsService {
     try {
       const cacheKey = `${source.name}-${language}`;
       const cached = this.cache.get(cacheKey);
-      
+
       if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
         return cached.data;
       }
 
-      // Use RSS feeds which are free and reliable
-      const rssUrls = {
-        'BBC News': 'https://feeds.bbci.co.uk/news/rss.xml',
-        'Reuters': 'https://feeds.reuters.com/reuters/topNews',
-        'TechCrunch': 'https://techcrunch.com/feed/',
-        'The Verge': 'https://www.theverge.com/rss/index.xml',
-        'Yonhap News': 'https://en.yna.co.kr/RSS/feed.xml',
-        'Korea Times': 'https://www.koreatimes.co.kr/rss/index.xml',
-        'Korea Herald': 'https://www.koreaherald.com/rss/index.xml'
-      };
-
-      const rssUrl = rssUrls[source.name];
-      if (!rssUrl) {
+      if (!source.rss) {
         console.error(`No RSS feed available for ${source.name}`);
         throw new Error('No RSS feed available');
       }
 
-      console.log(`Fetching RSS from: ${rssUrl}`);
+      console.log(`Fetching RSS from: ${source.rss}`);
 
-      // Try with CORS proxy first
-      let response;
+      // Browsers cannot read most RSS feeds directly (no CORS headers), so go
+      // through services that add them: rss2json first, then the allorigins
+      // raw proxy, then a direct request as a last resort.
+      let articles;
       try {
-        response = await axios.get(`https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`, {
-          timeout: 15000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        });
-        console.log(`RSS fetched via CORS proxy successfully`);
-      } catch (proxyError) {
-        console.log(`CORS proxy failed, trying direct request:`, proxyError.message);
-        // Fallback to direct request (will likely fail due to CORS)
-        response = await axios.get(rssUrl, {
-          timeout: 15000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
-        });
+        articles = await this.fetchViaRss2Json(source.rss, source.name);
+        console.log(`RSS fetched via rss2json successfully`);
+      } catch (rss2jsonError) {
+        console.log(`rss2json failed for ${source.name} (${rss2jsonError.message}), trying CORS proxy...`);
+        const response = await axios
+          .get(`https://api.allorigins.win/raw?url=${encodeURIComponent(source.rss)}`, { timeout: 15000 })
+          .catch(() => axios.get(source.rss, { timeout: 15000 }));
+        articles = this.parseRSSFeed(response.data, source.name);
       }
 
-      console.log(`RSS response status: ${response.status}`);
-      console.log(`RSS response data length: ${response.data.length}`);
-
-      // Parse RSS XML
-      const articles = this.parseRSSFeed(response.data, source.name);
       const formattedArticles = this.formatNewsData(articles, source.name);
-      
+
       this.cache.set(cacheKey, {
         data: formattedArticles,
         timestamp: Date.now()
@@ -237,13 +137,48 @@ class NewsService {
       return formattedArticles;
     } catch (error) {
       console.error(`Error fetching from ${source.name}:`, error.message);
-      console.error(`Full error details:`, error);
-      if (error.response) {
-        console.error(`Response status: ${error.response.status}`);
-        console.error(`Response headers:`, error.response.headers);
-      }
       return [];
     }
+  }
+
+  // rss2json converts any RSS feed to JSON and sends CORS headers
+  async fetchViaRss2Json(rssUrl, sourceName) {
+    const response = await axios.get(
+      `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`,
+      { timeout: 15000 }
+    );
+    const data = response.data;
+    if (!data || data.status !== 'ok' || !Array.isArray(data.items)) {
+      throw new Error(`unexpected rss2json status: ${data && data.status}`);
+    }
+    return data.items.slice(0, 20).map((item, index) => ({
+      title: this.stripHtml(item.title),
+      description: this.stripHtml(item.description).slice(0, 300),
+      url: item.link,
+      publishedAt: this.parseRss2JsonDate(item.pubDate),
+      source: sourceName,
+      content: this.stripHtml(item.content || item.description),
+      imageUrl:
+        item.thumbnail ||
+        (item.enclosure && item.enclosure.link) ||
+        `https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400&random=${index}`
+    }));
+  }
+
+  // rss2json normalizes pubDate to UTC "YYYY-MM-DD HH:mm:ss"
+  parseRss2JsonDate(pubDate) {
+    if (!pubDate) return new Date().toISOString();
+    const date = new Date(`${pubDate.replace(' ', 'T')}Z`);
+    return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
+  }
+
+  stripHtml(html) {
+    if (!html) return '';
+    return html
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&[^;\s]{1,10};/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   // Simple RSS parser

@@ -76,23 +76,24 @@ npm run electron-pack
 
 ### News Sources
 
-News is fetched from public RSS feeds — no API key required. Requests are
-routed through a CORS proxy (`api.allorigins.win`) so the browser can read
-the feeds directly; if the proxy fails, a direct request is attempted.
+News is fetched from public RSS feeds — no API key required. Because browsers
+cannot read most feeds directly (no CORS headers), requests go through
+[rss2json](https://rss2json.com) first, falling back to the allorigins CORS
+proxy and then a direct request.
 
 #### English Sources
 - BBC News
-- Reuters
+- The Guardian
 - TechCrunch
 - The Verge
+- Ars Technica
 
 #### Korean Sources (English-language Korean outlets)
 - Yonhap News (en.yna.co.kr)
-- Korea Times
 - Korea Herald
 
-If every RSS fetch fails (e.g. CORS blocked), the app falls back to a public
-news API, and finally shows a placeholder article explaining the failure.
+If every fetch fails, the app shows a placeholder article explaining the
+failure instead of an empty page.
 
 ## Technical Details
 
@@ -128,7 +129,7 @@ No API keys or environment variables are required — all sources are public
 RSS feeds and the embedding model runs on-device.
 
 ### Customization
-- Add or edit news sources in the `rssUrls` map in `src/services/newsService.js`
+- Add or edit news sources in the `NEWS_SOURCES` map in `src/services/newsService.js`
 - Update the political-keyword filter lists in the same file
 - Adjust cache duration via `cacheTimeout` (default 30 minutes, in-memory)
 - Customize UI in `src/components/`
@@ -176,4 +177,4 @@ For issues and questions:
 
 ---
 
-**Note**: This app relies on free public RSS feeds and a public CORS proxy (`api.allorigins.win`). For production use, consider running your own proxy or a small backend that fetches the feeds server-side. 
+**Note**: This app relies on free public RSS feeds and free RSS-to-JSON/CORS services (rss2json, allorigins). For production use, consider running your own proxy or a small backend that fetches the feeds server-side. 
