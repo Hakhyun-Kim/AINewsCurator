@@ -1,0 +1,12 @@
+{
+  "english": [
+    { "name": "BBC Business", "rss": "https://feeds.bbci.co.uk/news/business/rss.xml" },
+    { "name": "The Guardian Business", "rss": "https://www.theguardian.com/business/rss" },
+    { "name": "CNBC Business", "rss": "https://www.cnbc.com/id/10001147/device/rss/rss.html" }
+  ],
+  "korean": [
+    { "name": "연합뉴스 경제", "rss": "https://www.yna.co.kr/rss/economy.xml" },
+    { "name": "한국경제", "rss": "https://www.hankyung.com/feed/economy" },
+    { "name": "매일경제", "rss": "https://www.mk.co.kr/rss/30100041/" }
+  ]
+}

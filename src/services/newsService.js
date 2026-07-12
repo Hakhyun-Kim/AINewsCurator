@@ -1,20 +1,10 @@
 import axios from 'axios';
 import { format, subHours } from 'date-fns';
 
-// News sources, each fetched via its public RSS feed (no API key needed)
-const NEWS_SOURCES = {
-  english: [
-    { name: 'BBC News', rss: 'https://feeds.bbci.co.uk/news/rss.xml' },
-    { name: 'The Guardian', rss: 'https://www.theguardian.com/international/rss' },
-    { name: 'TechCrunch', rss: 'https://techcrunch.com/feed/' },
-    { name: 'The Verge', rss: 'https://www.theverge.com/rss/index.xml' },
-    { name: 'Ars Technica', rss: 'https://feeds.arstechnica.com/arstechnica/index' }
-  ],
-  korean: [
-    { name: 'Yonhap News', rss: 'https://en.yna.co.kr/RSS/news.xml' },
-    { name: 'Korea Herald', rss: 'https://www.koreaherald.com/rss/newsAll' }
-  ]
-};
+// Economy/business section feeds only — the app's default (and only) view.
+// Shared with scripts/fetch-news.js, which snapshots the same feeds
+// server-side at deploy time.
+import NEWS_SOURCES from '../newsSources.json';
 
 // Keywords to filter out political content
 const POLITICAL_KEYWORDS = [
@@ -24,11 +14,12 @@ const POLITICAL_KEYWORDS = [
   '정치', '선거', '투표', '대통령', '국회', '정부', '정책', '법안'
 ];
 
-// Keywords to prioritize non-political content
-const NON_POLITICAL_CATEGORIES = [
-  'technology', 'science', 'health', 'business', 'entertainment',
-  'sports', 'environment', 'education', 'culture', 'lifestyle',
-  '기술', '과학', '건강', '비즈니스', '엔터테인먼트', '스포츠', '환경', '교육', '문화'
+// Keywords to filter out sports content
+const SPORTS_KEYWORDS = [
+  'sports', 'football', 'soccer', 'baseball', 'basketball', 'volleyball',
+  'tennis', 'golf', 'olympic', 'olympics', 'world cup', 'premier league',
+  'champions league', 'nba', 'nfl', 'mlb', 'fifa', 'formula 1', 'grand slam',
+  '스포츠', '축구', '야구', '농구', '배구', '골프', '올림픽', '월드컵'
 ];
 
 class NewsService {
@@ -45,16 +36,27 @@ class NewsService {
     return newsDate >= twentyFourHoursAgo;
   }
 
+  // ASCII keywords match on word boundaries ("bill" must not hit "billion",
+  // "house" must not hit "household"); Korean keywords match as substrings
+  // since Korean text has no usable word boundaries.
+  matchesKeyword(text, keyword) {
+    if (/^[\x20-\x7E]+$/.test(keyword)) {
+      const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`\\b${escaped}\\b`).test(text);
+    }
+    return text.includes(keyword);
+  }
+
   // Check if content is political
   isPoliticalContent(title, description, content) {
     const text = `${title} ${description} ${content}`.toLowerCase();
-    return POLITICAL_KEYWORDS.some(keyword => text.includes(keyword.toLowerCase()));
+    return POLITICAL_KEYWORDS.some(keyword => this.matchesKeyword(text, keyword.toLowerCase()));
   }
 
-  // Check if content is non-political
-  isNonPoliticalContent(title, description, content) {
+  // Check if content is sports
+  isSportsContent(title, description, content) {
     const text = `${title} ${description} ${content}`.toLowerCase();
-    return NON_POLITICAL_CATEGORIES.some(category => text.includes(category.toLowerCase()));
+    return SPORTS_KEYWORDS.some(keyword => this.matchesKeyword(text, keyword.toLowerCase()));
   }
 
   // Clean and format news data
@@ -73,8 +75,13 @@ class NewsService {
           console.log(`Filtered out political article: ${article.title}`);
           return false;
         }
-        
-        // Accept all non-political content
+
+        // Filter out sports content
+        if (this.isSportsContent(article.title, article.description, article.content)) {
+          console.log(`Filtered out sports article: ${article.title}`);
+          return false;
+        }
+
         return true;
       });
     
@@ -279,11 +286,35 @@ class NewsService {
     }
   }
 
+  // The deploy workflow periodically fetches all feeds server-side and ships
+  // them as a static news.json next to the app (see scripts/fetch-news.js).
+  // Same-origin, so immune to CORS and third-party proxy outages.
+  async fetchFromSnapshot(language) {
+    try {
+      const base = process.env.PUBLIC_URL || '';
+      const response = await axios.get(`${base}/news.json`, { timeout: 8000 });
+      const articles = response.data && response.data[language === 'ko' ? 'korean' : 'english'];
+      if (!Array.isArray(articles)) return [];
+      return this.formatNewsData(articles, 'snapshot');
+    } catch (error) {
+      console.log(`No news snapshot available (${error.message})`);
+      return [];
+    }
+  }
+
   // Fetch all news for a language
   async fetchNews(language = 'en') {
     try {
       console.log(`Fetching news for language: ${language}`);
-      
+
+      // Prefer the static snapshot; fall back to live RSS fetching (dev
+      // servers and stale deployments don't have a fresh snapshot).
+      const snapshotArticles = await this.fetchFromSnapshot(language);
+      if (snapshotArticles.length > 0) {
+        console.log(`Using ${snapshotArticles.length} articles from static snapshot`);
+        return snapshotArticles.slice(0, 50);
+      }
+
       const sources = language === 'ko' ? NEWS_SOURCES.korean : NEWS_SOURCES.english;
       console.log(`Using ${sources.length} sources for ${language}`);
       
@@ -337,7 +368,7 @@ class NewsService {
     const topArticles = articles.slice(0, 5);
     
     return {
-      summary: `Today's top ${topArticles.length} non-political news stories:`,
+      summary: `Today's top ${topArticles.length} economy & business stories:`,
       highlights: topArticles.map(article => ({
         title: article.title,
         summary: article.description?.substring(0, 100) + '...' || 'No description available'

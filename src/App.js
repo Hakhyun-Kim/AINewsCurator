@@ -181,7 +181,7 @@ function App() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                AI News Curator - Bringing you the latest non-political news from around the world
+                AI News Curator - Bringing you the latest economy &amp; business news, minus politics and sports
               </p>
               <p className={`text-xs mt-2 ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                 Powered by free news APIs • Updated every 30 minutes

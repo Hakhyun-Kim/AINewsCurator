@@ -8,6 +8,9 @@ yarn-error.log*
 build/
 dist/
 
+# Generated news snapshot (built fresh by scripts/fetch-news.js)
+/public/news.json
+
 # Environment variables
 .env
 .env.local

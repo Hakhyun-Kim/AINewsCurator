@@ -52,8 +52,8 @@ function AskNews({ articles, darkMode, language }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t(
-            'e.g. What happened in AI this week?',
-            '예: 이번 주 AI 관련 소식은?'
+            'e.g. What moved the markets today?',
+            '예: 오늘 증시에 영향 준 소식은?'
           )}
           className={`flex-1 px-4 py-2 rounded-md border focus:outline-none focus:ring-2 focus:ring-blue-500 ${
             darkMode

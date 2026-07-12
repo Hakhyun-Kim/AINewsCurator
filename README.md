@@ -2,14 +2,15 @@
 
 [한국어 README](README.ko.md)
 
-A modern, AI-powered news curator that aggregates and filters news from multiple sources, focusing on non-political content from the last 24 hours. Available as both a web application and desktop app.
+A modern, AI-powered news curator that aggregates economy & business news from multiple sources, showing only the last 24 hours with politics and sports filtered out. Available as both a web application and desktop app.
 
 ## Features
 
 ### ✅ Core Requirements Met
 - **Free AI Integration**: On-device embeddings for semantic search (no API key), free news APIs, simulated headline summaries
+- **Economy by Default**: the feed is built from economy/business section feeds only
 - **24-Hour News Filter**: Only shows news from the last 24 hours
-- **No Political Content**: Automatically filters out political news
+- **No Politics, No Sports**: keyword filters drop political and sports stories
 - **Korean & English Support**: Supports both Korean and English newspapers
 - **Multiple News Sources**: Aggregates from multiple free news APIs
 - **Desktop & Mobile Ready**: Runs as desktop app or web application
@@ -81,16 +82,15 @@ cannot read most feeds directly (no CORS headers), requests go through
 [rss2json](https://rss2json.com) first, falling back to the allorigins CORS
 proxy and then a direct request.
 
-#### English Sources
-- BBC News
-- The Guardian
-- TechCrunch
-- The Verge
-- Ars Technica
+#### English Sources (business sections)
+- BBC Business
+- The Guardian Business
+- CNBC Business
 
-#### Korean Sources (English-language Korean outlets)
-- Yonhap News (en.yna.co.kr)
-- Korea Herald
+#### Korean Sources (경제 sections, Korean-language)
+- 연합뉴스 경제
+- 한국경제
+- 매일경제
 
 If every fetch fails, the app shows a placeholder article explaining the
 failure instead of an empty page.
@@ -106,8 +106,9 @@ failure instead of an empty page.
 ### News Filtering
 The app uses intelligent filtering to:
 - Show only news from the last 24 hours
-- Exclude political content using keyword filtering
-- Prioritize non-political categories (technology, science, health, etc.)
+- Exclude political and sports content using keyword filtering (English
+  keywords match on word boundaries so e.g. "bill" doesn't hit "billion")
+- Keep the feed economy-only by sourcing from business/economy section feeds
 
 ### AI Integration
 **Semantic search / RAG (real, on-device):** the "Ask the News" panel embeds each

@@ -3,6 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [ main ]
+  schedule:
+    # Hourly redeploy so the static news snapshot stays fresh
+    - cron: '23 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -32,6 +35,11 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Fetch news snapshot
+        # On failure the app falls back to fetching feeds live in the browser
+        continue-on-error: true
+        run: node scripts/fetch-news.js
 
       - name: Build application
         run: npm run build
