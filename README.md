@@ -7,7 +7,7 @@ A modern, AI-powered news curator that aggregates economy & business news from m
 ## Features
 
 ### ✅ Core Requirements Met
-- **Free AI Integration**: On-device embeddings for semantic search (no API key), free news APIs, simulated headline summaries
+- **Free AI Integration**: keyless full RAG — on-device embeddings + a local WebGPU LLM (optional OpenAI upgrade), free news APIs
 - **Economy by Default**: the feed is built from economy/business section feeds only
 - **24-Hour News Filter**: Only shows news from the last 24 hours
 - **No Politics, No Sports**: keyword filters drop political and sports stories
@@ -16,7 +16,7 @@ A modern, AI-powered news curator that aggregates economy & business news from m
 - **Desktop & Mobile Ready**: Runs as desktop app or web application
 
 ### 🚀 Additional Features
-- **Ask the News (full RAG)**: ask a question in English or Korean — in-browser embeddings retrieve today's most relevant articles (no key), and with an optional OpenAI key it generates a grounded answer that cites each source `[n]`
+- **Ask the News (full RAG, keyless)**: ask a question in English or Korean — in-browser embeddings retrieve today's most relevant articles, then a model generates a grounded answer that cites each source `[n]`. Generation runs on a **local WebGPU model by default (no key, no server)**, and upgrades to OpenAI if you add a key in Settings.
 - **Modern UI**: Beautiful, responsive design with dark/light mode
 - **Real-time Updates**: Auto-refresh with manual refresh option
 - **Smart Filtering**: AI-powered content categorization
@@ -121,17 +121,21 @@ The "Ask the News" panel implements the complete RAG pipeline over today's artic
    over an in-memory vector index, with E5 `query:` / `passage:` prefixes applied.
    See `src/services/embeddingService.js` and `src/services/ragService.js`.
 2. **Augment:** the top-k retrieved articles are formatted as a numbered context block.
-3. **Generate (optional, bring-your-own OpenAI key):** the context + question go to
-   an OpenAI chat model that is instructed to answer **only** from the supplied
-   articles and cite them as `[n]`, matching the numbered source list in the UI.
-   See `src/services/llmService.js`.
+3. **Generate:** the context + question are sent to a chat model instructed to
+   answer **only** from the supplied articles and cite them as `[n]`, matching the
+   numbered source list in the UI. The generation prompt is shared across backends
+   (`src/services/ragPrompt.js`).
 
-The key is entered in the panel's Settings, stored **only** in the browser
-(`localStorage`) — never bundled, logged, or sent anywhere except `api.openai.com`.
-**Without a key the app still works**: it stops after retrieval and shows the
-ranked, source-cited articles (an extractive digest). With a key it adds a
-grounded, generated answer on top. Model defaults to `gpt-4o-mini` and is
-configurable in Settings. No server; works in the web app and the Electron build.
+**Generation runs on a three-tier fallback so it works with zero setup:**
+
+| Tier | Backend | Key? | Notes |
+|---|---|---|---|
+| 1 (default) | **Local WebGPU model** — `Qwen2.5-1.5B-Instruct` via [WebLLM](https://github.com/mlc-ai/web-llm) | none | Runs fully in the browser. First run downloads ~1 GB of weights and caches them; needs WebGPU. `src/services/localLlmService.js` |
+| 2 (opt-in) | **OpenAI** chat model (default `gpt-4o-mini`) | your key | Higher quality. Key entered in Settings, stored **only** in `localStorage` — never bundled, logged, or sent anywhere except `api.openai.com`. `src/services/llmService.js` |
+| 3 (fallback) | **Retrieval only** | none | If WebGPU is unavailable and no key is set, the ranked, source-cited articles are shown without a generated answer. |
+
+The app picks the best available tier automatically and shows which engine
+produced each answer. No server; works in the web app and the Electron build.
 
 **Headline summaries** (the top "AI News Summary" card) remain a simple extractive
 placeholder — the generative work lives in the RAG panel above.
