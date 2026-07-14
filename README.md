@@ -16,7 +16,7 @@ A modern, AI-powered news curator that aggregates economy & business news from m
 - **Desktop & Mobile Ready**: Runs as desktop app or web application
 
 ### 🚀 Additional Features
-- **Ask the News (RAG)**: semantic search over today's articles with in-browser embeddings — type a question in English or Korean and get a retrieval-grounded digest where every line links to its source
+- **Ask the News (full RAG)**: ask a question in English or Korean — in-browser embeddings retrieve today's most relevant articles (no key), and with an optional OpenAI key it generates a grounded answer that cites each source `[n]`
 - **Modern UI**: Beautiful, responsive design with dark/light mode
 - **Real-time Updates**: Auto-refresh with manual refresh option
 - **Smart Filtering**: AI-powered content categorization
@@ -110,19 +110,31 @@ The app uses intelligent filtering to:
   keywords match on word boundaries so e.g. "bill" doesn't hit "billion")
 - Keep the feed economy-only by sourcing from business/economy section feeds
 
-### AI Integration
-**Semantic search / RAG (real, on-device):** the "Ask the News" panel embeds each
-article (title + description) and your query with `Xenova/multilingual-e5-small`
-running in the browser via [Transformers.js](https://huggingface.co/docs/transformers.js)
-(ONNX/WASM, quantized ~112 MB, downloaded once and cached). Retrieval is
-cosine similarity over an in-memory vector index (E5 `query:` / `passage:`
-prefixes applied), and the digest is extractive and fully grounded — every line
-cites its source article. No API key, no server; works in the web app and the
-Electron build. See `src/services/embeddingService.js` and `src/services/ragService.js`.
+### AI Integration — full RAG loop (retrieve → augment → generate)
 
-**Headline summaries** remain simulated. Natural next step: feed the retrieved
-articles to an LLM API (Claude, OpenAI) with a user-supplied key for generative,
-cited answers on top of the same retrieval layer.
+The "Ask the News" panel implements the complete RAG pipeline over today's articles:
+
+1. **Retrieve (on-device, no key):** each article (title + description) and your
+   query are embedded with `Xenova/multilingual-e5-small` running in the browser
+   via [Transformers.js](https://huggingface.co/docs/transformers.js) (ONNX/WASM,
+   quantized ~112 MB, downloaded once and cached). Retrieval is cosine similarity
+   over an in-memory vector index, with E5 `query:` / `passage:` prefixes applied.
+   See `src/services/embeddingService.js` and `src/services/ragService.js`.
+2. **Augment:** the top-k retrieved articles are formatted as a numbered context block.
+3. **Generate (optional, bring-your-own OpenAI key):** the context + question go to
+   an OpenAI chat model that is instructed to answer **only** from the supplied
+   articles and cite them as `[n]`, matching the numbered source list in the UI.
+   See `src/services/llmService.js`.
+
+The key is entered in the panel's Settings, stored **only** in the browser
+(`localStorage`) — never bundled, logged, or sent anywhere except `api.openai.com`.
+**Without a key the app still works**: it stops after retrieval and shows the
+ranked, source-cited articles (an extractive digest). With a key it adds a
+grounded, generated answer on top. Model defaults to `gpt-4o-mini` and is
+configurable in Settings. No server; works in the web app and the Electron build.
+
+**Headline summaries** (the top "AI News Summary" card) remain a simple extractive
+placeholder — the generative work lives in the RAG panel above.
 
 ## Configuration
 
